@@ -9,6 +9,7 @@ from threading import Thread
 import pickle
 from os.path import isfile
 import operator
+import time
 
 """
 Distance matrix
@@ -18,7 +19,7 @@ def matrix_dist(Cols, metric, df, n_threads):
 	X = Cols.copy()
 	threads = list()
 	factor = int(len(X)/n_threads)
-	
+
 	for n in range(n_threads):
 		X_ = []
 		if n < n_threads - 1:
@@ -29,27 +30,37 @@ def matrix_dist(Cols, metric, df, n_threads):
 		t = Thread(target=thread,args=(dist, X_, X, metric, df))
 		t.start()
 		threads.append(t)
-			
+
 	for t in threads:
 		t.join()
-	
+
 	return dist
 
 def save_matrix(name, obj):
 	with open(name + '.pkl', 'wb') as f:
 		pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 	return
-		
+
 def load_matrix(name):
 	with open(name + '.pkl', 'rb') as f:
 		return pickle.load(f)
-	
-def thread(dist, part, X, metric, df):
-	for x in part:
-		dist[x] = dict()
-		for y in X:
-			dist[x][y] = metric(x,y,df)
-	return
+
+def dist_all_to_all(Cols, metric, df, n_threads):
+	obj = Cols.copy()
+	n = len(obj)
+	dist = np.zeros(shape=(n,n))
+	print(n)
+
+	#Calcula a matriz de similaridade para a parte triangular superior
+	for i in range(0,n):
+		for j in range(i+1,n):
+			dist[i][j] = metric(obj[i],obj[j],df)
+	#Faz o espelhamento da matriz
+	for j in range(1, n):
+		for i in range(0, j):
+			dist[j][i] = dist[i][j]
+	print(dist)
+	return dist
 
 """
 Distance Measure-lambda do artigo
@@ -61,7 +72,7 @@ def mici(x,y,bag):
 
 """
 Feature selection algorithm
-"""	
+"""
 def mitraOLD(bag, k = None, M = dict()):
     #print("\n[Inicio do Algoritmo]")
     O = bag.columns
@@ -69,7 +80,7 @@ def mitraOLD(bag, k = None, M = dict()):
     #Step 1
     R = O.copy()
     k = k if k else len(O) - 1
-    
+
     #Step 2
     small_rik = 10
     while k > 1:
@@ -83,7 +94,7 @@ def mitraOLD(bag, k = None, M = dict()):
             for j in range(0,len(R)):
                 if j != i:
                     Fj = R[j]
-                    neighbors.append([M[Fi][Fj],j]) 
+                    neighbors.append([M[Fi][Fj],j])
             neighbors = sorted(neighbors,reverse=False)[:k]
             if neighbors[-1][0] < small_rik:
                 F = i
@@ -97,7 +108,7 @@ def mitraOLD(bag, k = None, M = dict()):
         k = (len(R) - 1) if k > (len(R) - 1) else k
         #print("mid k = ", k)
         #print("R len =", len(R),"\n")
-       
+
         #Step 5
         if k <= 1:
             return R
@@ -112,7 +123,7 @@ def mitraOLD(bag, k = None, M = dict()):
                 for j in range(0,len(R)):
                     if j != i:
                         Fj = R[j]
-                        neighbors.append([M[Fi][Fj],j]) 
+                        neighbors.append([M[Fi][Fj],j])
                 neighbors = sorted(neighbors,reverse=False)[:k]
                 if neighbors[-1][0] < small_rik:
                     small_rik = neighbors[-1][0]
@@ -120,10 +131,10 @@ def mitraOLD(bag, k = None, M = dict()):
 
             if k <= 1:
                 return R
-    
+
         #Step 7
         #return to step 2
-    
+
     #Step 8
     return R
 
@@ -147,17 +158,17 @@ def mitra(bag, k = None, M = dict(), n = 100):
 				feat_chosen = x
 			if iteration > 0 and dist > error:
 				decr -= 1
-		
+
 		features = [f for f in features if f not in cluster_chosen]
-	
+
 		if iteration == 0:
 			error = dist_chosen
 		else:
 			k += decr
-		
+
 		if k < 1:
 			return features
-	
+
 	return features
 
 def manager(df,M):
@@ -182,13 +193,13 @@ def manager(df,M):
 			k_chosen = k
 			features=Result
 		print("\n")
-		
+
 	print("K chosen =",k_chosen)
 	print("Silhoutte Score chosen =", silh)
 	print("Features chosen =",features)
 
 	return df[features]
-	
+
 def main(base_dir, distance_matrix_name = 'matrixMITRA', distance_matrix_extension = '.pkl', n_threads = 1):
 	distance_matrix_name = "../Matrizes_de_Distancia/" + distance_matrix_name
 	base = pd.read_csv(base_dir, sep="\t")
@@ -198,9 +209,13 @@ def main(base_dir, distance_matrix_name = 'matrixMITRA', distance_matrix_extensi
 		matrix = load_matrix(distance_matrix_name)
 	else:
 		print("[LOG] Not able to load distance matrix.\n[LOG] Calculating matrix.")#Calculating matrix
-		matrix = matrix_dist(base.columns, mici, base, n_threads)
-		save_matrix(distance_matrix_name, matrix)
-	
+		start = time.time()
+		matrix = dist_all_to_all(base.columns, mici, base, n_threads)
+		end = time.time()
+		print("Elapsed time: " + str(end - start) + " seconds.")
+		#save_matrix(distance_matrix_name, matrix)
+
+	return 0
 	newDF = manager(base,matrix)
 	newDF.to_csv("../Bases_geradas/Exp2_main_processed.csv",sep="\t")
 
