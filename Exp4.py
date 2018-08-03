@@ -11,21 +11,27 @@ from os.path import isfile
 """
 Distance matrix
 """
-def matrix_dist(X, metric, df):
-	dist = dict()
-	n_threads = 2
-	
-	factor = int(len(X)/n_threads)
-	
-	t1 = Thread(target=thread,args=(dist, X[:factor], X, metric, df))
-	t1.start()
-	t2 = Thread(target=thread,args=(dist, X[factor:], X, metric, df))
-	t2.start()
-	
-	t1.join()
-	t2.join()
-	
-	return dist
+def matrix_dist(Cols, metric, df, n_threads):
+        dist = dict()
+        X = Cols.copy()
+        threads = list()
+        factor = int(len(X)/n_threads)
+
+        for n in range(n_threads):
+                X_ = []
+                if n < n_threads - 1:
+                        X_ = X[:factor]
+                        X = X[factor:]
+                else:
+                        X_ = X
+                t = Thread(target=thread,args=(dist, X_, X, metric, df))
+                t.start()
+                threads.append(t)
+
+        for t in threads:
+                t.join()
+
+        return dist
 
 def save_matrix(name, obj):
 	with open(name + '.pkl', 'wb') as f:
@@ -152,7 +158,8 @@ def manager(df,M):
 		
 	return chosenDF
 
-def main(base_dir, distance_matrix_name = 'matrixACA', distance_matrix_extension = '.pkl'):
+def main(base_dir, distance_matrix_name = 'matrixACA', distance_matrix_extension = '.pkl',n_threads = 1):
+	distance_matrix_name = "../Matrizes_de_Distancia/" + distance_matrix_name
 	base = pd.read_csv(base_dir, sep="\t")
 	matrix = None
 	if isfile(distance_matrix_name+distance_matrix_extension):
@@ -160,11 +167,11 @@ def main(base_dir, distance_matrix_name = 'matrixACA', distance_matrix_extension
 		matrix = load_matrix(distance_matrix_name)
 	else:
 		print("[LOG] Not able to load distance matrix.\n[LOG] Calculating matrix.")
-		matrix = matrix_dist(base.columns, R, df)
+		matrix = matrix_dist(base.columns, R, df,n_threads)
 		save_matrix(distance_matrix_name, matrix)
 	
 	newDF = manager(base,matrix)
-	newDF.to_csv("Exp4"+base_dir,sep="\t")
+	newDF.to_csv("../Bases_geradas/Exp4"+base_dir,sep="\t")
 
 def teste():
 	print("it works!")

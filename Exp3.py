@@ -13,40 +13,6 @@ import operator
 from multiprocessing.pool import Pool
 from multiprocessing import cpu_count
 import operator
-"""
-Distance matrix
-"""
-def matrix_dist(X, metric, df):
-	dist = dict()
-	n_threads = 2
-	
-	factor = int(len(X)/n_threads)
-	
-	t1 = Thread(target=thread,args=(dist, X[:factor], X, metric, df))
-	t1.start()
-	t2 = Thread(target=thread,args=(dist, X[factor:], X, metric, df))
-	t2.start()
-	
-	t1.join()
-	t2.join()
-	
-	return dist
-
-def save_matrix(name, obj):
-	with open(name + '.pkl', 'wb') as f:
-		pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-	return
-		
-def load_matrix(name):
-	with open(name + '.pkl', 'rb') as f:
-		return pickle.load(f)
-	
-def thread(dist, part, X, metric, df):
-	for x in part:
-		dist[x] = dict()
-		for y in X:
-			dist[x][y] = metric(x,y,df)
-	return
 
 """
 Distance Measure
@@ -205,7 +171,7 @@ def manager(df):
 def main(base_dir):
 	base = pd.read_csv(base_dir, sep="\t")
 	newDF = manager(base)
-	newDF.to_csv("Exp3"+base_dir,sep="\t")
+	newDF.to_csv("../Bases_geradas/Exp3_main_processed.csv",sep="\t")
 	return
 
 def main2(base_dir):

@@ -3,7 +3,7 @@ import Exp3 #SUD
 import Exp2 #Mitra
 
 def main(op):
-	base_dir="main_processed.csv"
+	base_dir="../Bases_originais/main_processed.csv"
 	Exp = None
 	if op == 2:
 		Exp = Exp2
@@ -17,4 +17,4 @@ def main(op):
 	Exp.main(base_dir)
 	
 if __name__ == '__main__':
-	main(3)
+	main(2)

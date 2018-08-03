@@ -13,19 +13,25 @@ import operator
 """
 Distance matrix
 """
-def matrix_dist(X, metric, df):
+def matrix_dist(Cols, metric, df, n_threads):
 	dist = dict()
-	n_threads = 2
-	
+	X = Cols.copy()
+	threads = list()
 	factor = int(len(X)/n_threads)
 	
-	t1 = Thread(target=thread,args=(dist, X[:factor], X, metric, df))
-	t1.start()
-	t2 = Thread(target=thread,args=(dist, X[factor:], X, metric, df))
-	t2.start()
-	
-	t1.join()
-	t2.join()
+	for n in range(n_threads):
+		X_ = []
+		if n < n_threads - 1:
+			X_ = X[:factor]
+			X = X[factor:]
+		else:
+			X_ = X
+		t = Thread(target=thread,args=(dist, X_, X, metric, df))
+		t.start()
+		threads.append(t)
+			
+	for t in threads:
+		t.join()
 	
 	return dist
 
@@ -46,11 +52,11 @@ def thread(dist, part, X, metric, df):
 	return
 
 """
-Distance Measure
+Distance Measure-lambda do artigo
 """
 def mici(x,y,bag):
-    varx = bag[x].var()
-    vary = bag[y].var()
+    varx = bag[x].var()#variancia de x escalar
+    vary = bag[y].var()#variancie de y escalar
     return varx + vary - np.sqrt((varx + vary)**2 - 4*varx*vary*(1 - bag[x].corr(bag[y])**2))
 
 """
@@ -167,9 +173,9 @@ def manager(df,M):
 		print("Elapsed time:", end - start)
 		print("Number of features",len(Result))
 		X=df[Result]
-		kmeans_model = KMeans(n_clusters=ncluster, random_state=1).fit(X)
+		kmeans_model = KMeans(n_clusters=ncluster, random_state=1, n_jobs=1).fit(X)#agrupamemto kmeans
 		labels = kmeans_model.labels_
-		mysilh = metrics.silhouette_score(X, labels, metric='euclidean')
+		mysilh = metrics.silhouette_score(X, labels, metric='euclidean')#metrics euclidian
 		print("Silhouette Score:", mysilh)
 		if mysilh > silh:
 			silh = mysilh
@@ -183,19 +189,20 @@ def manager(df,M):
 
 	return df[features]
 	
-def main(base_dir, distance_matrix_name = 'matrixMITRA', distance_matrix_extension = '.pkl'):
+def main(base_dir, distance_matrix_name = 'matrixMITRA', distance_matrix_extension = '.pkl', n_threads = 1):
+	distance_matrix_name = "../Matrizes_de_Distancia/" + distance_matrix_name
 	base = pd.read_csv(base_dir, sep="\t")
 	matrix = None
 	if isfile(distance_matrix_name+distance_matrix_extension):
 		print("[LOG] Loading distance matrix")
 		matrix = load_matrix(distance_matrix_name)
 	else:
-		print("[LOG] Not able to load distance matrix.\n[LOG] Calculating matrix.")
-		matrix = matrix_dist(base.columns, mici, base)
+		print("[LOG] Not able to load distance matrix.\n[LOG] Calculating matrix.")#Calculating matrix
+		matrix = matrix_dist(base.columns, mici, base, n_threads)
 		save_matrix(distance_matrix_name, matrix)
 	
 	newDF = manager(base,matrix)
-	newDF.to_csv("Exp2"+base_dir,sep="\t")
+	newDF.to_csv("../Bases_geradas/Exp2_main_processed.csv",sep="\t")
 
 def teste(base_dir):
 	base = pd.read_csv(base_dir, sep="\t")
