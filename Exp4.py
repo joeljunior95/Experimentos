@@ -42,13 +42,22 @@ def load_matrix(name):
 	with open(name + '.pkl', 'rb') as f:
 		return pickle.load(f)
 	
-def thread(dist, part, X, metric, df):
-	for x in part:
-		dist[x] = dict()
-		for y in X:
-			dist[x][y] = metric(x,y,df)
-	return
+def dist_all_to_all(Cols, metric, df, n_threads):
+	obj = Cols.copy()
+	n = len(obj)
+	dist = np.zeros(shape=(n,n))
+	print(n)
 
+	#Calcula a matriz de similaridade para a parte triangular superior
+	for i in range(0,n):
+		for j in range(i+1,n):
+			dist[i][j] = metric(obj[i],obj[j],df)
+	#Faz o espelhamento da matriz
+	for j in range(1, n):
+		for i in range(0, j):
+			dist[j][i] = dist[i][j]
+	print(dist)
+	return dist
 """
 Distance Measure
 """
@@ -166,9 +175,12 @@ def main(base_dir, distance_matrix_name = 'matrixACA', distance_matrix_extension
 		print("[LOG] Loading distance matrix")
 		matrix = load_matrix(distance_matrix_name)
 	else:
-		print("[LOG] Not able to load distance matrix.\n[LOG] Calculating matrix.")
-		matrix = matrix_dist(base.columns, R, df,n_threads)
-		save_matrix(distance_matrix_name, matrix)
+		print("[LOG] Not able to load distance matrix.\n[LOG] Calculating matrix.")#Calculating matrix
+		start = time.time()
+		matrix = dist_all_to_all(base.columns, R, base, n_threads)
+		end = time.time()
+		print("Elapsed time: " + str(end - start) + " seconds.")
+		#save_matrix(distance_matrix_name, matrix)
 	
 	newDF = manager(base,matrix)
 	newDF.to_csv("../Bases_geradas/Exp4"+base_dir,sep="\t")

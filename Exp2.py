@@ -233,4 +233,4 @@ def teste(base_dir):
 	print("Result:",e-s)
 
 if __name__ == '__main__':
-	main("complete_processed.csv")
+	main("bases_originais/main_processed.csv")
